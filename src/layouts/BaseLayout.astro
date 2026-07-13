@@ -1,0 +1,60 @@
+﻿---
+import '../styles/global.css';
+const { title, description } = Astro.props;
+---
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+  </head>
+  <body class="bg-gray-50 text-gray-900 font-sans antialiased flex flex-col min-h-screen">
+    
+    <header class="p-4 sm:p-6 bg-white shadow-sm border-b-4 border-amber-400">
+      <div class="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+        <a href="/" class="flex flex-col items-center sm:items-start">
+          <span class="font-extrabold text-2xl text-emerald-800 tracking-tight">Viver Bem no Nordeste</span>
+          <span class="text-xs font-bold text-amber-500 uppercase tracking-widest mt-0.5">Finanças Reais</span>
+        </a>
+        <nav class="flex gap-4 sm:gap-6 text-sm font-bold text-gray-600">
+          <a href="/" class="hover:text-emerald-600 transition-colors">Início</a>
+          <a href="/blog" class="hover:text-emerald-600 transition-colors">Artigos</a>
+          <a href="/sobre" class="hover:text-emerald-600 transition-colors">Sobre</a>
+          <a href="/contato" class="hover:text-emerald-600 transition-colors">Contato</a>
+        </nav>
+      </div>
+    </header>
+    
+    <main class="flex-grow max-w-5xl mx-auto px-4 sm:px-6 py-10 w-full">
+      <slot />
+    </main>
+    
+    <footer class="bg-emerald-900 text-emerald-100 pt-12 pb-8 mt-10">
+      <div class="max-w-5xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 mb-8 border-b border-emerald-800 pb-8">
+        <div>
+          <h3 class="font-extrabold text-white text-xl mb-4 text-amber-400">Viver Bem no Nordeste</h3>
+          <p class="text-sm text-emerald-200/80">O canal que prova: quem ganha pouco também consegue realizar os seus sonhos. Dicas práticas para quem vive com renda menor prosperar.</p>
+        </div>
+        <div>
+          <h4 class="font-bold text-white mb-4">Links Rápidos</h4>
+          <ul class="space-y-2 text-sm">
+            <li><a href="/blog" class="hover:text-amber-400 transition-colors">Todos os Artigos</a></li>
+            <li><a href="/sobre" class="hover:text-amber-400 transition-colors">Nossa História</a></li>
+            <li><a href="/contato" class="hover:text-amber-400 transition-colors">Contato e Parcerias</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="font-bold text-white mb-4">Nossas Redes</h4>
+          <a href="https://www.youtube.com/channel/UCocxXWWJ6siGOLEO8ncrSaA" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 bg-red-600 text-white font-bold py-2 px-4 rounded hover:bg-red-700 transition-colors text-sm">
+            ▶️ Canal no YouTube
+          </a>
+        </div>
+      </div>
+      <div class="text-center text-xs text-emerald-400/60 max-w-5xl mx-auto px-6">
+        <p>&copy; {new Date().getFullYear()} - Viver Bem no Nordeste. Todo o conteúdo é meramente educativo e baseado em dados públicos. Consulte um especialista para decisões de alto risco.</p>
+      </div>
+    </footer>
+
+  </body>
+</html>
