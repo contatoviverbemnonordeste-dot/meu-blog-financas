@@ -1,27 +1,100 @@
 ﻿---
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import { getCollection, render } from 'astro:content';
 
+// 1. Função para criar as rotas dinâmicas
 export async function getStaticPaths() {
-  const posts = await getCollection('blog');
-  return posts.map(post => ({
-    params: { slug: post.id },
-    props: { post },
-  }));
+  const notionApiKey = import.meta.env.NOTION_API_KEY;
+  const databaseId = import.meta.env.NOTION_DATABASE_ID;
+
+  const resposta = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${notionApiKey}`,
+      'Notion-Version': '2022-06-28',
+      'Content-Type': 'application/json'
+    }
+  });
+
+  const dados = await resposta.json();
+  const posts = dados.results || [];
+
+  return posts.map((post) => {
+    return {
+      params: { slug: post.id }, 
+      props: { post }, 
+    };
+  });
 }
 
+// 2. Lógica da página individual
 const { post } = Astro.props;
-const { Content } = await render(post);
+const titulo = post.properties['Título']?.title[0]?.plain_text || post.properties['Name']?.title[0]?.plain_text || 'Artigo sem título';
+
+// 3. NOVO: Ir ao Notion buscar o "Corpo" do texto (Os Blocos)
+const notionApiKey = import.meta.env.NOTION_API_KEY;
+const blocosResposta = await fetch(`https://api.notion.com/v1/blocks/${post.id}/children`, {
+  method: 'GET',
+  headers: {
+    'Authorization': `Bearer ${notionApiKey}`,
+    'Notion-Version': '2022-06-28'
+  }
+});
+const blocosDados = await blocosResposta.json();
+const blocos = blocosDados.results || [];
 ---
-<BaseLayout title={post.data.title} description={post.data.description}>
-  <article class="max-w-3xl mx-auto py-10">
-    <header class="mb-10 text-center border-b border-gray-200 pb-8">
-      <p class="text-sm font-semibold text-emerald-600 tracking-widest uppercase mb-2">Artigo</p>
-      <h1 class="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4">{post.data.title}</h1>
-      <p class="text-xl text-gray-500">{post.data.description}</p>
+
+<BaseLayout title={titulo} description="Leia este artigo completo no nosso blog.">
+  <article class="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+    
+    <a href="/" class="text-emerald-700 font-bold hover:text-emerald-800 transition-colors mb-8 inline-flex items-center">
+      &larr; Voltar à página inicial
+    </a>
+    
+    <header class="mb-10 border-b border-gray-200 pb-8">
+      <span class="inline-block py-1 px-3 rounded-full bg-amber-100 text-amber-800 font-bold text-xs uppercase tracking-widest mb-4">Finanças Reais</span>
+      <h1 class="text-4xl sm:text-5xl font-extrabold text-gray-900 leading-tight mb-6">{titulo}</h1>
     </header>
-    <div class="prose prose-lg text-gray-800 space-y-6 leading-relaxed">
-      <Content />
+    
+    <div class="prose prose-lg prose-emerald max-w-none text-gray-800">
+      {blocos.length === 0 && (
+        <p class="text-gray-500 italic text-center py-10">Este artigo ainda não tem texto. Escreva algo no Notion!</p>
+      )}
+
+      {/* O nosso tradutor de blocos do Notion para HTML */}
+      {blocos.map((bloco) => {
+        // Se for um parágrafo normal
+        if (bloco.type === 'paragraph') {
+          const texto = bloco.paragraph.rich_text.map(t => t.plain_text).join('');
+          return texto ? <p class="mb-6 leading-relaxed">{texto}</p> : <br/>;
+        }
+        
+        // Se for um Subtítulo (H2)
+        if (bloco.type === 'heading_2') {
+          const texto = bloco.heading_2.rich_text.map(t => t.plain_text).join('');
+          return <h2 class="text-3xl font-extrabold mt-12 mb-6 text-emerald-900">{texto}</h2>;
+        }
+
+        // Se for um Subtítulo Menor (H3)
+        if (bloco.type === 'heading_3') {
+          const texto = bloco.heading_3.rich_text.map(t => t.plain_text).join('');
+          return <h3 class="text-2xl font-bold mt-8 mb-4 text-emerald-800">{texto}</h3>;
+        }
+
+        // Se for uma lista de pontos (Bullets)
+        if (bloco.type === 'bulleted_list_item') {
+          const texto = bloco.bulleted_list_item.rich_text.map(t => t.plain_text).join('');
+          return <li class="ml-6 list-disc mb-2 pl-2">{texto}</li>;
+        }
+
+        // Se for uma citação
+        if (bloco.type === 'quote') {
+          const texto = bloco.quote.rich_text.map(t => t.plain_text).join('');
+          return <blockquote class="border-l-4 border-amber-400 bg-amber-50 p-4 rounded-r-lg my-6 italic text-gray-700">{texto}</blockquote>;
+        }
+
+        return null; // Ignora tipos de blocos que não configurámos (como imagens ou tabelas) por enquanto
+      })}
     </div>
+
   </article>
 </BaseLayout>

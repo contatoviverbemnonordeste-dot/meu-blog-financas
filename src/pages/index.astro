@@ -1,65 +1,59 @@
 ﻿---
-import BaseLayout from '../layouts/BaseLayout.astro';
-import { getCollection } from 'astro:content';
+// Importamos o cliente oficial do Notion para podermos comunicar com a sua tabela
+import { Client } from "@notionhq/client";
 
-const allPosts = await getCollection('blog');
-const recentPosts = allPosts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()).slice(0, 3);
+// 1. Inicializamos a "ponte" de comunicação usando a sua Chave de API
+const notion = new Client({
+  auth: import.meta.env.NOTION_API_KEY,
+});
+
+// 2. Guardamos o ID da tabela numa variável para facilitar a leitura
+const databaseId = import.meta.env.NOTION_DATABASE_ID;
+
+// 3. ATUALIZAÇÃO: Fazemos a busca na tabela aplicando o filtro do Status
+const response = await notion.databases.query({
+  database_id: databaseId,
+  filter: {
+    property: "Status", // O nome exato da sua coluna no Notion
+    status: {
+      equals: "Não iniciada", // Dizemos ao código para aceitar estes artigos!
+    },
+  },
+});
+
+// 4. Guardamos os resultados encontrados numa lista chamada "artigos"
+const artigos = response.results;
 ---
-<BaseLayout title="Viver Bem no Nordeste | Finanças para a Vida Real" description="Quem ganha pouco também consegue realizar os seus sonhos. Dicas práticas e verdadeiras para você organizar o seu dinheiro.">
-  
-  <section class="bg-emerald-800 text-white rounded-3xl p-8 sm:p-14 mb-14 shadow-xl relative overflow-hidden">
-    <div class="relative z-10 max-w-2xl">
-      <span class="inline-block py-1 px-3 rounded-full bg-amber-400 text-amber-900 font-bold text-xs uppercase tracking-widest mb-4">Finanças para a vida real 💛</span>
-      <h1 class="text-4xl sm:text-5xl font-extrabold mb-6 leading-tight">Quem ganha pouco também realiza <span class="text-amber-400">sonhos.</span></h1>
-      <p class="text-lg sm:text-xl mb-8 text-emerald-100 font-medium">Sem fórmulas mágicas, sem abrir mão do essencial. Dicas práticas para organizar seu dinheiro e prosperar na nossa região.</p>
-      <div class="flex flex-col sm:flex-row gap-4">
-        <a href="#artigos" class="bg-amber-400 text-emerald-900 font-bold py-3 px-8 rounded-xl hover:bg-amber-300 transition-colors text-center shadow-md">📖 Ler os Artigos</a>
-        <a href="https://www.youtube.com/channel/UCocxXWWJ6siGOLEO8ncrSaA" target="_blank" rel="noopener noreferrer" class="bg-emerald-700/50 text-white font-bold py-3 px-8 rounded-xl hover:bg-emerald-600 transition-colors text-center border border-emerald-500">📺 Ver no YouTube</a>
-      </div>
-    </div>
-  </section>
 
-  <section id="artigos" class="mb-16">
-    <div class="flex justify-between items-end mb-8 border-b-2 border-gray-100 pb-4">
-      <div>
-        <h2 class="text-3xl font-extrabold text-gray-900">Novidades no Blog</h2>
-        <p class="text-gray-500 mt-1 font-medium">Os guias mais recentes para o seu bolso.</p>
-      </div>
-      <a href="/blog" class="text-emerald-700 font-bold hover:text-emerald-800 hidden sm:block">Ver todos &rarr;</a>
-    </div>
-    
-    <div class="grid gap-6 sm:grid-cols-3">
-      {recentPosts.map((post) => (
-        <a href={`/blog/${post.id}`} class="flex flex-col bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl hover:border-emerald-300 transition-all overflow-hidden group">
-          <div class="h-40 bg-gray-100 w-full overflow-hidden relative border-b border-gray-200">
-            {post.data.image ? (
-              <img src={post.data.image} alt={post.data.title} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-            ) : (
-              <div class="absolute inset-0 bg-emerald-50 flex items-center justify-center text-emerald-200 group-hover:scale-110 transition-transform duration-500">
-                <span class="text-5xl">📸</span>
-              </div>
-            )}
+<html lang="pt-PT">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>O Meu Blog de Finanças</title>
+    <style>
+      body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+      .artigo { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
+      .status { color: #888; font-size: 0.9em; }
+    </style>
+  </head>
+  <body>
+    <h1>Últimos Artigos do Blog</h1>
+
+    <div>
+      {/* 5. Esta secção percorre a lista de artigos que vieram do Notion e desenha-os no ecrã */}
+      {artigos.length === 0 ? (
+        <p>Ainda não há artigos para mostrar.</p>
+      ) : (
+        artigos.map((artigo) => (
+          <div class="artigo">
+            {/* Puxa o Título do artigo. Usamos o encadeamento opcional (?) para evitar erros se o título estiver vazio */}
+            <h2>{artigo.properties.Título.title[0]?.plain_text || "Artigo sem título"}</h2>
+            
+            {/* Mostra o Status do artigo */}
+            <p class="status">Status atual: {artigo.properties.Status.status.name}</p>
           </div>
-          <div class="p-6 flex-grow flex flex-col">
-            <span class="text-xs font-bold text-amber-500 uppercase mb-2 tracking-wider">Novo Guia</span>
-            <h3 class="text-xl font-extrabold text-gray-900 mb-3 leading-tight group-hover:text-emerald-700 transition-colors">{post.data.title}</h3>
-            <p class="text-gray-600 text-sm mb-4 flex-grow line-clamp-3">{post.data.description}</p>
-            <span class="text-sm font-bold text-emerald-600 mt-auto">Ler artigo completo &rarr;</span>
-          </div>
-        </a>
-      ))}
+        ))
+      )}
     </div>
-  </section>
-
-  <section class="bg-amber-50 rounded-3xl p-8 sm:p-12 border border-amber-200 text-center mb-8 relative overflow-hidden">
-    <div class="relative z-10">
-      <span class="text-5xl mb-4 block">✨</span>
-      <h2 class="text-3xl font-extrabold text-gray-900 mb-4">Aprenda de forma visual!</h2>
-      <p class="text-gray-700 max-w-2xl mx-auto mb-8 text-lg">Inscreva-se no nosso canal do YouTube. Toda semana trazemos vídeos detalhados mostrando na tela do celular como guardar dinheiro, escolher investimentos e fugir das dívidas.</p>
-      <a href="https://www.youtube.com/channel/UCocxXWWJ6siGOLEO8ncrSaA" target="_blank" rel="noopener noreferrer" class="inline-block bg-red-600 text-white text-lg font-bold py-4 px-10 rounded-full hover:bg-red-700 transition-colors shadow-lg hover:shadow-xl transform hover:-translate-y-1">
-        ▶️ Inscrever-se no Canal
-      </a>
-    </div>
-  </section>
-
-</BaseLayout>
+  </body>
+</html>
