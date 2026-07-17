@@ -1,44 +1,56 @@
 ﻿---
-// 1. Importação à prova de balas (trazemos a ferramenta do Notion de forma global)
-import * as notionhq from "@notionhq/client";
+// 1. Já não precisamos do pacote do Notion! Vamos usar a comunicação direta do servidor.
 
-// Garantimos que pegamos no 'Client' da forma correta, independentemente de como a Vercel o empacote
-const Client = notionhq.Client || notionhq.default?.Client;
-
-// 2. Leitura Dupla das Chaves Secretas (Astro + Vercel)
+// Lemos as tuas chaves secretas (suporta tanto o ambiente do Astro como o da Vercel)
 const apiKey = import.meta.env.NOTION_API_KEY || process.env.NOTION_API_KEY;
 const databaseId = import.meta.env.NOTION_DATABASE_ID || process.env.NOTION_DATABASE_ID;
 
-// Criamos variáveis para guardar os resultados e evitar que a página quebre
+// Criamos uma lista vazia para os artigos
 let artigos = [];
 let erroNotion = null;
 
 try {
-  // Verificação de segurança: garantimos que as chaves existem
+  // Verificação de segurança: as chaves existem?
   if (!apiKey || !databaseId) {
     throw new Error("As chaves de ambiente NOTION_API_KEY ou NOTION_DATABASE_ID não foram configuradas.");
   }
 
-  // Inicialização segura do cliente Notion com a chave de acesso
-  const notion = new Client({ auth: apiKey });
+  // 2. O COMANDO FETCH: Comunicação direta com a porta do Notion na internet
+  // URL oficial do Notion para consultar bases de dados
+  const urlDoNotion = `https://api.notion.com/v1/databases/${databaseId}/query`;
 
-  // 3. Consulta à base de dados usando o filtro para "Não iniciada"
-  const response = await notion.databases.query({
-    database_id: databaseId,
-    filter: {
-      property: "Status", // O nome exato da coluna no Notion
-      status: {
-        equals: "Não iniciada", // O status que os seus testes atuais têm
-      },
+  const resposta = await fetch(urlDoNotion, {
+    method: 'POST', // Estamos a enviar um pedido
+    headers: {
+      'Authorization': `Bearer ${apiKey}`, // A nossa Palavra-passe
+      'Notion-Version': '2022-06-28',      // A versão da linguagem do Notion
+      'Content-Type': 'application/json'   // Dizemos que vamos enviar os filtros em formato de texto (JSON)
     },
+    body: JSON.stringify({
+      // 3. O filtro exato que queres aplicar
+      filter: {
+        property: "Status", // Nome da coluna
+        status: {
+          equals: "Não iniciada" // Queremos os artigos de teste
+        }
+      }
+    })
   });
 
-  // Guardamos a lista de artigos encontrada
-  artigos = response.results;
+  // Se o Notion rejeitar a nossa chamada por algum motivo, capturamos o erro exato
+  if (!resposta.ok) {
+    const detalheDoErro = await resposta.text();
+    throw new Error(`O Notion recusou o pedido: ${detalheDoErro}`);
+  }
+
+  // 4. Traduzimos a resposta do Notion e guardamos os artigos
+  const dados = await resposta.json();
+  artigos = dados.results || [];
+
 } catch (error) {
-  // Se algo correr mal nesta fase, guardamos o erro para mostrar no ecrã de forma limpa
+  // Guardamos a mensagem de erro para apresentar no ecrã
   erroNotion = error.message;
-  console.error("Erro ao carregar dados do Notion:", error);
+  console.error("Erro de comunicação direta:", error);
 }
 ---
 
@@ -60,7 +72,7 @@ try {
     <div class="container">
       <h1>Últimos Artigos do Blog</h1>
 
-      {/* Se capturarmos um erro, ele aparece nesta caixa vermelha elegante */}
+      {/* Caixa de aviso caso ocorra algum problema de chaves ou comunicação */}
       {erroNotion && (
         <div class="erro">
           <strong>Aviso do Sistema:</strong> {erroNotion}
@@ -68,11 +80,11 @@ try {
       )}
 
       <div>
-        {/* Se não houver erros mas a lista de artigos estiver vazia */}
+        {/* Mostra mensagem se não houver artigos e não houver erros */}
         {artigos.length === 0 && !erroNotion ? (
           <p>Ainda não há artigos para mostrar com o status "Não iniciada".</p>
         ) : (
-          /* Desenha na tela cada artigo encontrado */
+          /* Desenha no ecrã os títulos lidos diretamente do Notion */
           artigos.map((artigo) => (
             <div class="artigo">
               <h2>{artigo.properties.Título?.title[0]?.plain_text || "Artigo sem título"}</h2>
